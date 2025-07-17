@@ -3,17 +3,33 @@ import { PrismaClient } from "../../generated/prisma";
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import { authMiddleware, CustomRequest } from "../middlewares/authMiddlewares";
+import * as zod from 'zod'
 
 const authRoutes = Router()
 const prisma = new PrismaClient()
 
+const RegisterDTO = zod.object({
+    name: zod
+        .string('A informação precisa ser uma string')
+        .max(255, {
+            error: 'O cumprimento máximo é 255'
+        }),
+    email: zod.email(),
+    password: zod.string(),
+    document: zod.string()
+})
+
 authRoutes.post('/register', async (req, res) => {
     const { body } = req;
-    if (!body.name || !body.email || !body.password || !body.document) {
+    
+    try {
+        RegisterDTO.parse(body)
+    } catch(error) {
         res.status(400).send({
-            message: "Requisição inválida"
-        });
-        return;
+            message: "Requisição inválida",
+            details: zod.treeifyError(error as zod.ZodError)
+        })
+        return
     }
 
     body.password = await argon2.hash(body.password)
@@ -24,14 +40,22 @@ authRoutes.post('/register', async (req, res) => {
     res.send(createdUser)
 })
 
+const LoginDTO = zod.object({
+    email: zod.email(),
+    password: zod.string()
+})
+
 authRoutes.post('/login', async (req, res) =>{
     const { body } = req;
     const { email, password } = body;
 
     // Body está correto
-    if (!email || !password) { 
+    try {
+        LoginDTO.parse(body)
+    } catch(error) {
         res.status(400).send({
-            message: "Requisição inválida"
+            message: "Requisição inválida",
+            details: zod.treeifyError(error as zod.ZodError)
         });
         return;
     }
