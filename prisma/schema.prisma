@@ -15,11 +15,30 @@ datasource db {
 }
 
 model User {
-  id String @id @default(uuid())
-  name String
-  email String @unique
-  password String
-  document String
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String?
+  document  String
+  updatedAt DateTime @updatedAt()
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id        String   @id @default(uuid())
+  name      String
+  price     Decimal
+  updatedAt DateTime @updatedAt()
+  createdAt DateTime @default(now())
+}
+
+model Plan {
+  id    String  @id @default(uuid())
+  name  String
+  price Decimal
+
+  featureFlags Int
+
   updatedAt DateTime @updatedAt()
   createdAt DateTime @default(now())
 }
