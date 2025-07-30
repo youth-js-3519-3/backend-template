@@ -12,14 +12,14 @@ const OrderProductsDTO = zod.array(zod.object({
 }))
 
 const OrderCustomerDTO = zod.object({
-    phone: zod.array(zod.object({
+    phone: zod.object({
         country_code: zod.string(),
         area_code: zod.string(),
         number: zod.string(),
-    })),
+    }),
     address: zod.object({
         line_1: zod.string(),
-        line_2: zod.string(),
+        line_2: zod.string().optional(),
         zip_code: zod.string(),
         state: zod.string(),
         city: zod.string(),
@@ -32,8 +32,8 @@ const OrderCustomerDTO = zod.object({
 
 const OrderPaymentDTO = zod.object({
     type: zod.enum(['credit_card', 'debit_card']),
-    number: zod.string().length(12),
-    cvv: zod.string().length(3),
+    number: zod.string().length(16),
+    cvv: zod.string().min(3).max(4),
     name: zod.string().optional(),
     document: zod.string().length(11).optional(),
     month: zod.int(),
@@ -54,7 +54,7 @@ const OrderDTO = zod.object({
     payment: OrderPaymentDTO
 })
 
-orderRoutes.post('/buy', authMiddleware, async (req, res) => {
+orderRoutes.post('/', authMiddleware, async (req, res) => {
     const { body: _body, userInfo } = req as CustomRequest;
     const body = _body as zod.infer<typeof OrderDTO>
 
@@ -87,7 +87,7 @@ orderRoutes.post('/buy', authMiddleware, async (req, res) => {
 
         return {
             code: product.id,
-            amount: product.price,
+            amount: product.price.toNumber() * 100,
             quantity: item.quantity,
             description: product.name
         }
@@ -125,8 +125,8 @@ orderRoutes.post('/buy', authMiddleware, async (req, res) => {
     }
 
     const secret = Buffer
-        .from(process.env.GATEWAY_API_KEY as string)
-        .toString('base64')
+        .from(process.env.GATEWAY_API_KEY as string + ':')
+        .toString('base64')    
 
     const request = await fetch('https://api.pagar.me/core/v5/orders', {
         method: 'post',
@@ -140,7 +140,8 @@ orderRoutes.post('/buy', authMiddleware, async (req, res) => {
 
     if (!request.ok) {
         res.status(500).send({
-            message: 'Erro ao fazer o pedido'
+            message: 'Erro ao fazer o pedido',
+            details: await request.json()
         })
         return
     }
@@ -149,6 +150,17 @@ orderRoutes.post('/buy', authMiddleware, async (req, res) => {
         message: 'Pedido feito',
         details: {}
     })
+})
+
+orderRoutes.get('/', authMiddleware, async (req, res) => {
+    const { userInfo, query } = req as CustomRequest;
+    const { 
+        page = 1,
+    } = query
+
+    const ordersRequest = await fetch(`https://api.pagar.me/core/v5/orders?customer_id=${userInfo.id}&page=${page}`)
+    const orders = await ordersRequest.json()
+    res.send(orders)
 })
 
 orderRoutes.post('/gateway-confirm', async (req, res) => {

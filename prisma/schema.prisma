@@ -20,8 +20,15 @@ model User {
   email     String   @unique
   password  String?
   document  String
+  role      Role     @default(USER)
+
   updatedAt DateTime @updatedAt()
   createdAt DateTime @default(now())
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 model Product {
